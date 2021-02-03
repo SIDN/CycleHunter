@@ -1,27 +1,24 @@
 ## CycleHunter
 
-* This code detects [cyclic dependecies](http://conferences.sigcomm.org/sigcomm/2004/papers/p595-pappas111.pdf) in DNS zones
+* This code detects cyclic dependecies in DNS zones
 * It has a series of steps
-* It takes as input DNS zone files
-
-
 
 ### TL;DR
 
-To analyze a full zone, you can use `CycleHunter.py` as below
+To analyze a full zone, you can use `fireloop.py` as below
 
 ```
-python CycleHunter.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS> --workers <WORKERS>
+python fireloop.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS>
 ```
 
 Where
-- `ZONEFILE` is the file with the zone you want to analyze
-- `ORIGIN` is the zone represented by the `ZONEFILE`, for example, *.COM* or *.NL*
-- `FILE_TO_SAVE_AFFECTED_DOMAINS` is a JSON file that in the end will have the list of domains affected by full cycles
-- `WORKERS` is the number of parallel works that will use to send queries
+- ZONEFILE is the file with the zone you want to analyze
+- ORIGIN is the zone represented by the ZONEFILE, for example, *.COM* or *.NL*
+- FILE_TO_SAVE_AFFECTED_DOMAINS is a JSON file that in the end will have the list of domains affected by full cycles
+
 ### If you like to do this by hand
 
-`CycleHunter.py` wraps all the steps below, but if you still want to run them by hand, the process is:
+`fireloop.py` wraps all the steps below, but if you still want to run them by hand, the process is:
 
 1. Extract all NS records from the zone file
 
