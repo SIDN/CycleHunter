@@ -3,7 +3,7 @@
 * This code detects [cyclic dependecies](http://conferences.sigcomm.org/sigcomm/2004/papers/p595-pappas111.pdf) in DNS zones
 * It has a series of steps
 * It takes as input DNS zone files
-
+* First developed by [@gmmoura](https://github.com/gmmoura) and [@secastro](https://github.com/secastro), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
 
 
 ### TL;DR
