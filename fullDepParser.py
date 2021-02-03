@@ -10,7 +10,7 @@ def full_cycle_detection(dep_file=None, output_file=None):
     fullDep = dict()
 
     for k, v in deps.items():
-        if k == 'fullDep':
+        if  'fullDep' in k:
             for zone, dep in v.items():
                 if len(v) > 0:
                     fullDep[zone] = dep
