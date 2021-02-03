@@ -3,7 +3,8 @@
 * This code detects [cyclic dependecies](http://conferences.sigcomm.org/sigcomm/2004/papers/p595-pappas111.pdf) in DNS zones
 * It has a series of steps
 * It takes as input DNS zone files
-* First developed by [@gmmoura](https://github.com/gmmoura) and [@secastro](https://github.com/secastro), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
+* First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
+
 
 
 ### TL;DR
@@ -25,7 +26,8 @@ Where
 
 1. Extract all NS records from the zone file
 
-  * `python largeZoneParser.py $zonefile $output1 $TLD`
+  * `python largeZoneParser.py $zonefile $TLD $output1`
+    * e.g: `python3 largeZoneParser.py  /var/cache/bind/com.zone .com com-nses.csv`
 
 2. Query these NSes, and output those that timeout into `$output2`
 
