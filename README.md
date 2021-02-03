@@ -4,10 +4,11 @@
 * It has a series of steps
 * It takes as input DNS zone files
 * First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
+* Check [cycleHunter.pdf](https://github.com/SIDN/CycleHunter/blob/main/cycleHunter.pdf) to see more about its architecture and how it works
 
 
 
-### TL;DR
+### To run it:
 
 To analyze a full zone, you can use `CycleHunter.py` as below
 
