@@ -32,7 +32,7 @@ Where
 
 2. Query these NSes, and output those that timeout into `$output2`
 
-  * `python CyclicDetector.py $output1 $output2 -- limit <workers>`
+  * `python CyclicDetector.py $output1 $output2 --limit <workers>`
 
 3. Scrutinize each timed out NS, either parent or child, and see if which ones are really cyclic dependent into `output3`
 
