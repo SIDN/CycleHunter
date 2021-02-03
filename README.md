@@ -1,7 +1,6 @@
 ## CycleHunter
 
 * This code detects [cyclic dependecies](http://conferences.sigcomm.org/sigcomm/2004/papers/p595-pappas111.pdf) in DNS zones
-* It has a series of steps
 * It takes as input DNS zone files
 * First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
 * Check [cycleHunter.pdf](https://github.com/SIDN/CycleHunter/blob/main/cycleHunter.pdf) to see more about its architecture and how it works
