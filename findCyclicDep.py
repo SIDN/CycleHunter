@@ -30,10 +30,12 @@ class Authority(object):
             # if 'bio-bak' in i:
             #    print('wait')
             parent = getparent(i)
-
-            if parent[-1] != ".":
-                parent = parent + "."
             parentLenght = len(parent.split("."))
+            if parentLenght> 0:
+                if parent[-1] != ".":
+                    parent = parent + "."
+            else:
+                print("CHECK: parent has zero length")
             isParentTLD = False
             # if len==2 , then is a TLD
             if parentLenght == 2:
