@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import re
 
 
 def get_ns_set(zonefile=None, extension=None):
@@ -13,14 +14,12 @@ def get_ns_set(zonefile=None, extension=None):
 
     with open(zonefile) as f:
         for line in f.readlines():
-            sp = line.lower().split('\t')
+            sp = re.split('[\s]', line.lower())
             ns_entry = ''
 
             if len(sp) > 3:
-                if sp[2] == 'ns':
-                    ns_entry = sp[-1].rstrip()
-                elif sp[3] == 'ns':
-                    ns_entry = sp[-1].rstrip()
+                if sp[2] == 'ns' or sp[3] == 'ns':
+                    ns_entry = sp[-2].rstrip()
 
                 if ns_entry != '':
                     ns_entry = ns_entry.lower()
