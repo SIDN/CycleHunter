@@ -20,7 +20,7 @@ Where
 - `ORIGIN` is the zone represented by the `ZONEFILE`, for example, *.COM* or *.NL*
 - `FILE_TO_SAVE_AFFECTED_DOMAINS` is a JSON file that in the end will have the list of domains affected by full cycles
 - `WORKERS` is the number of parallel works that will use to send queries
-### If you like to do this by hand
+### If you'd  like to do this by hand
 
 `CycleHunter.py` wraps all the steps below, but if you still want to run them by hand, the process is:
 
