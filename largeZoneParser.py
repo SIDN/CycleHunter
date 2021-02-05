@@ -44,7 +44,7 @@ if __name__ == '__main__':
     # Read the command line arguments
     argparser = argparse.ArgumentParser(description="Extract all NS records from a zone file")
     argparser.add_argument('zonefile', type=str, help="File with the list of nameservers")
-    argparser.add_argument('zonename', type=str, help="File to save the mapping")
+    argparser.add_argument('zonename', type=str, help="The name of the zone to parse")
     argparser.add_argument('output', type=str, help="File to save the output")
     args = argparser.parse_args()
 
