@@ -119,21 +119,31 @@ def getCyclic(infile):
 
 
 def zone_matcher(cyclic_domain_file=None, zonefile=None, zoneorigin=None, output_file=None):
-    print("step 1: read cyclic domains")
-    cyclic = getCyclic(cyclic_domain_file)
-    print("step 2: read zone file and find them")
-    troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
-    print("step 3: writing it to json")
+    print("step 8: read cyclic domains")
+    cyclic=''
+    try:
+        cyclic = getCyclic(cyclic_domain_file)
+    except FileNotFoundError:
+        logging.info("ERROR: no cyclic domain file")
 
+    if cyclic=='':
+        logging.info('ERROR: no cyclic domain file  ')
+        sys.exit(cyclic_domain_file + "    does not exist; exiting ")
 
-    if len(troubledDomains)>0:
-        with open(output_file, 'w') as fp:
-            json.dump(troubledDomains, fp)
-        print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
-        print('done')
     else:
-        logging.info("ERROR: could not match domain names to NS records; please check zoneMatcher.py")
-        sys.exit('ERROR:  could not match domain names to NS records; please check zoneMatcher.py')
+        print("step 8a: read zone file and find them")
+        troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
+        print("step 8b: writing it to json")
+
+
+        if len(troubledDomains)>0:
+            with open(output_file, 'w') as fp:
+                json.dump(troubledDomains, fp)
+            print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
+            print('done')
+        else:
+            logging.info("ERROR: could not match domain names to NS records; please check zoneMatcher.py")
+            sys.exit('ERROR:  could not match domain names to NS records; please check zoneMatcher.py')
 
 if __name__ == '__main__':
     # Setup logging if called from command line
