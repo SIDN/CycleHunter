@@ -7,6 +7,12 @@
 
 
 
+### DISCLAIMER on  Zone File Parser:
+
+ * We **do not** use any lib to parse the zone files because they don't scale well, and we just need NS records
+ * So depending if you're zone is tab or space separated, it may be the you'll have to ajust the line-by-line parser of `largeZoneParser.py` to your setup
+  * we already have two PR from folks with slightly different formatted zone files
+  
 ### To run it:
 
 To analyze a full zone, you can use `CycleHunter.py` as below
