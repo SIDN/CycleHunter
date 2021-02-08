@@ -37,7 +37,6 @@ def zone_parser(zonefile=None, zonename=None, output_file=None):
         for k in nsset:
             aus.write(f"{k}\n")
 
-
 if __name__ == '__main__':
     # Setup logging if called from command line
     logging.basicConfig(filename='zone-parser.log',
