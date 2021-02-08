@@ -13,7 +13,7 @@ def get_ns_set(zonefile=None, extension=None):
 
     with open(zonefile) as f:
         for line in f.readlines():
-            sp = line.lower().split('\t')
+            sp = line.lower().split()
             ns_entry = ''
 
             if len(sp) > 3:
