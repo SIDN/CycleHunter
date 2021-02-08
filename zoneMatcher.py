@@ -3,6 +3,7 @@
 import json
 import argparse
 import logging
+import sys
 
 from domutils import getparent
 
@@ -124,11 +125,15 @@ def zone_matcher(cyclic_domain_file=None, zonefile=None, zoneorigin=None, output
     troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
     print("step 3: writing it to json")
 
-    with open(output_file, 'w') as fp:
-        json.dump(troubledDomains, fp)
-    print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
-    print('done')
 
+    if len(troubledDomains)>0:
+        with open(output_file, 'w') as fp:
+            json.dump(troubledDomains, fp)
+        print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
+        print('done')
+    else:
+        logging.info("ERROR: could not match domain names to NS records; please check zoneMatcher.py")
+        sys.exit('ERROR:  could not match domain names to NS records; please check zoneMatcher.py')
 
 if __name__ == '__main__':
     # Setup logging if called from command line

@@ -1,7 +1,7 @@
 import dns.resolver
 from dns import resolver
 import json
-
+import sys
 import argparse
 import logging
 
@@ -941,8 +941,12 @@ def find_cycles(timeout_file=None, output_file=None):
     # classified=classZones(cyclic)
 
     print("step 7: writing down results")
-    with open(output_file, 'w') as fp:
-        json.dump(cyclic, fp)
+    if len(cyclic)>0:
+        with open(output_file, 'w') as fp:
+            json.dump(cyclic, fp)
+    else:
+        logging.info('Warning: no cylic dependent NS records found. Stopping here   ')
+        sys.exit(output_file + "   cylic dependent NS records found. Stopping here ")
 
 
 if __name__ == '__main__':
