@@ -956,8 +956,8 @@ if __name__ == '__main__':
     # Read the command line arguments
     argparser = argparse.ArgumentParser(
         description="Verifies timed out NS, either parent or child, and checks the ones with cyclic dependency")
-    argparser.add_argument('timeout-file', type=str, help="File with the timeout output from CyclicDetector.py")
-    argparser.add_argument('cycle-output', type=str, help="File to save the cycles detected")
+    argparser.add_argument('timeout_file', type=str, help="File with the timeout output from CyclicDetector.py")
+    argparser.add_argument('cycle_output', type=str, help="File to save the cycles detected")
     args = argparser.parse_args()
 
     find_cycles(timeout_file=args.timeout_file, output_file=args.cycle_output)
