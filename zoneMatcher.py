@@ -141,7 +141,7 @@ if __name__ == '__main__':
                         level=logging.INFO, format="%(asctime)s zone_matcher: %(levelname)s %(message)s")
     # Read the command line arguments
     argparser = argparse.ArgumentParser(description="Determines how many domains are affected by cyclic dependency")
-    argparser.add_argument('full-cycle-file', type=str, help="File with the list of full cycles")
+    argparser.add_argument('full_cycle_file', type=str, help="File with the list of full cycles")
     argparser.add_argument('zonefile', type=str, help="Zone file to analyze")
     argparser.add_argument('zonename', type=str, help="Zone origin")
     argparser.add_argument('output', type=str, help="File to save the output")
