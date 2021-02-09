@@ -1,5 +1,6 @@
 # this file reads large zone fiels and extract its set of NS records
 
+import re
 import json
 import argparse
 import logging
@@ -23,6 +24,7 @@ def evalNSSet(cyclic, nsset):
 
 def parseZone(cyclic, zonefile, extension):
     bugged = dict()
+    ns_regex = re.compile('(?:[a-zA-Z\.0-9_-]+\s+\d+\s+)(IN\s+NS\s+)(?:[a-zA-Z\.0-9_-])')
     if extension[-1] != ".":
         extension = extension + "."
     if extension[0] != ".":
@@ -35,25 +37,28 @@ def parseZone(cyclic, zonefile, extension):
 
         tempDomain = ''
         for line in f:
-            line = line.lower()
-            sp = line.split('\t')
+            #line = line.lower()
+            #sp = line.split('\t')
+            sp = line.split()
             counter = counter + 1
 
             if float(counter) % 100_000 == 0:
                 print(f"reading line {counter} of zone file")
 
-            if 'ns\t' in line:
-                # if 'ns' in line and 'rrsig' not in line and 'dnskey' not in line and 'nsec3' not in line :
+            if ns_regex.match(line):
+            #if ' ns ' in line and 'rrsig' not in line and 'dnskey' not in line and 'nsec3' not in line:
                 if sp[0] != '':
                     if not foundZone:
                         tempDomain = sp[0]
+                        print('at not foundZone. Tempodomain: {}'.format(tempDomain))
                         if len(tempDomain.split(".")) == 1:
                             tempDomain = tempDomain + extension
-                            foundZone = True
-                            tempNS = sp[-1].rstrip()
-                            if tempNS[-1] != ".":
-                                tempNS = tempNS + extension
-                            nsset.add(tempNS)
+                        foundZone = True
+                        tempNS = sp[-1].rstrip()
+                        if tempNS[-1] != ".":
+                            tempNS = tempNS + extension
+                        nsset.add(tempNS)
+                        print('nsset: {}'.format(nsset))
 
                     else:
                         '''
@@ -61,8 +66,9 @@ def parseZone(cyclic, zonefile, extension):
                         1. calc if it is bugged
                         2. create new zone
                         '''
-
+                        print('at else not foundZone')
                         result = evalNSSet(cyclic, nsset)
+                        print('result: {}'.format(result))
 
                         if result:
                             bugged[tempDomain] = list(nsset)
@@ -133,7 +139,10 @@ def zone_matcher(cyclic_domain_file=None, zonefile=None, zoneorigin=None, output
     else:
         print("step 8a: read zone file and find them")
         troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
+        print('troubleddomains: {}'.format(troubledDomains))
         print("step 8b: writing it to json")
+        print(cyclic)
+        print(troubledDomains)
 
 
         if len(troubledDomains)>0:
