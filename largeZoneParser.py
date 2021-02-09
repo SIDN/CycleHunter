@@ -12,16 +12,15 @@ def get_ns_set(zonefile=None, extension=None):
         extension = "." + extension
 
     with open(zonefile) as f:
-        for line in f.readlines():
+        #read one line at a time; can't readlines() bc of large zones as .com
+        for line in f:
             sp = line.lower().split()
+            #print(str(sp))
             ns_entry = ''
 
-            if len(sp) > 3:
-                if sp[2] == 'ns':
+            if len(sp) >= 2 :
+                if sp[0] == 'ns' or sp[1]=='ns':
                     ns_entry = sp[-1].rstrip()
-                elif sp[3] == 'ns':
-                    ns_entry = sp[-1].rstrip()
-
                 if ns_entry != '':
                     ns_entry = ns_entry.lower()
 
