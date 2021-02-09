@@ -401,6 +401,9 @@ if __name__ == '__main__':
     argparser.add_argument('output_file', type=str, help="File to save the mapping")
     argparser.add_argument('--limit', type=int, required=False, default=None,
                            help="Restrict the list of nameserver, use for testing")
+    argparser.add_argument('--workers', type=int, default=5,
+                           help="Number of parallel workers to query for DNS data")
     args = argparser.parse_args()
 
-    map_nsset(args.nsset_file, args.output_file, limit=args.limit)
+    asyncio.run(map_nsset(args.nsset_file, args.output_file, limit=args.limit,
+                          workers=args.workers))
