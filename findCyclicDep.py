@@ -360,7 +360,7 @@ def findParents(x):
             print(type(e))
             return -1
 
-        if nsLocalParent != '':
+        if nsLocalParent != '' and nsLocalParent != "NXDOMAIN":
             # print("analyze here")
             for k in nsLocalParent:
                 tempA = getA(k)
