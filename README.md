@@ -1,11 +1,9 @@
 ## CycleHunter
 
 * This code detects [cyclic dependecies](http://conferences.sigcomm.org/sigcomm/2004/papers/p595-pappas111.pdf) in DNS zones
-* It has a series of steps
 * It takes as input DNS zone files
-* First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internet.net.nz/).
+* First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internetnz.nz/).
 * Check [cycleHunter.pdf](https://github.com/SIDN/CycleHunter/blob/main/cycleHunter.pdf) to see more about its architecture and how it works
-
 
 
 ### To run it:
@@ -21,7 +19,7 @@ Where
 - `ORIGIN` is the zone represented by the `ZONEFILE`, for example, *.COM* or *.NL*
 - `FILE_TO_SAVE_AFFECTED_DOMAINS` is a JSON file that in the end will have the list of domains affected by full cycles
 - `WORKERS` is the number of parallel works that will use to send queries
-### If you like to do this by hand
+### If you'd  like to do this by hand
 
 `CycleHunter.py` wraps all the steps below, but if you still want to run them by hand, the process is:
 

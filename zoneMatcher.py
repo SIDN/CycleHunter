@@ -3,6 +3,7 @@
 import json
 import argparse
 import logging
+import sys
 
 from domutils import getparent
 
@@ -110,25 +111,43 @@ def getCyclic(infile):
                 for k, v in tempD.items():
                     deps[k] = v
 
+
     for key, value in deps.items():
-        ret.add(key)
-        ret.add(value)
+        if 'fullDep' in key:
+            for ns1, ns2 in value.items():
+                ret.add(ns1)
+                ret.add(ns2)
+
 
     return ret
 
 
 def zone_matcher(cyclic_domain_file=None, zonefile=None, zoneorigin=None, output_file=None):
-    print("step 1: read cyclic domains")
-    cyclic = getCyclic(cyclic_domain_file)
-    print("step 2: read zone file and find them")
-    troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
-    print("step 3: writing it to json")
+    print("step 8: read cyclic domains")
+    cyclic=''
+    try:
+        cyclic = getCyclic(cyclic_domain_file)
+    except FileNotFoundError:
+        logging.info("ERROR: no cyclic domain file")
 
-    with open(output_file, 'w') as fp:
-        json.dump(troubledDomains, fp)
-    print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
-    print('done')
+    if cyclic=='':
+        logging.info('ERROR: no cyclic domain file  ')
+        sys.exit(cyclic_domain_file + "    does not exist; exiting ")
 
+    else:
+        print("step 8a: read zone file and find them")
+        troubledDomains = parseZone(cyclic, zonefile, zoneorigin)
+        print("step 8b: writing it to json")
+
+
+        if len(troubledDomains)>0:
+            with open(output_file, 'w') as fp:
+                json.dump(troubledDomains, fp)
+            print(f"\nThere are {len(troubledDomains)} domains that have at least one cyclic dependent NS")
+            print('done')
+        else:
+            logging.info("ERROR: could not match domain names to NS records; please check zoneMatcher.py")
+            sys.exit('ERROR:  could not match domain names to NS records; please check zoneMatcher.py')
 
 if __name__ == '__main__':
     # Setup logging if called from command line
@@ -136,7 +155,7 @@ if __name__ == '__main__':
                         level=logging.INFO, format="%(asctime)s zone_matcher: %(levelname)s %(message)s")
     # Read the command line arguments
     argparser = argparse.ArgumentParser(description="Determines how many domains are affected by cyclic dependency")
-    argparser.add_argument('full-cycle-file', type=str, help="File with the list of full cycles")
+    argparser.add_argument('full_cycle_file', type=str, help="File with the list of full cycles")
     argparser.add_argument('zonefile', type=str, help="Zone file to analyze")
     argparser.add_argument('zonename', type=str, help="Zone origin")
     argparser.add_argument('output', type=str, help="File to save the output")

@@ -1,7 +1,7 @@
 import dns.resolver
 from dns import resolver
 import json
-
+import sys
 import argparse
 import logging
 
@@ -30,10 +30,12 @@ class Authority(object):
             # if 'bio-bak' in i:
             #    print('wait')
             parent = getparent(i)
-
-            if parent[-1] != ".":
-                parent = parent + "."
             parentLenght = len(parent.split("."))
+            if parentLenght> 0:
+                if parent[-1] != ".":
+                    parent = parent + "."
+            else:
+                print("CHECK: parent has zero length")
             isParentTLD = False
             # if len==2 , then is a TLD
             if parentLenght == 2:
@@ -62,15 +64,16 @@ def makeAuth(bugged):
     timeOutZones = dict()
 
     for ns, authoritySection in bugged.items():
-        for zone, nsset in authoritySection.items():
-            # If the zone is in the timeOutZones, get it, if not, generate an Authority object
-            temp_zone = timeOutZones.get(zone, Authority(zone))
+        if authoritySection is not None:
+            for zone, nsset in authoritySection.items():
+                # If the zone is in the timeOutZones, get it, if not, generate an Authority object
+                temp_zone = timeOutZones.get(zone, Authority(zone))
 
-            # add NSes
-            for i in nsset:
-                temp_zone.addNS(i.lower())
+                # add NSes
+                for i in nsset:
+                    temp_zone.addNS(i.lower())
 
-            timeOutZones[zone.lower()] = temp_zone
+                timeOutZones[zone.lower()] = temp_zone
 
     return timeOutZones
 
@@ -358,7 +361,7 @@ def findParents(x):
             print(type(e))
             return -1
 
-        if nsLocalParent != '':
+        if nsLocalParent != '' and nsLocalParent != "NXDOMAIN":
             # print("analyze here")
             for k in nsLocalParent:
                 tempA = getA(k)
@@ -939,8 +942,12 @@ def find_cycles(timeout_file=None, output_file=None):
     # classified=classZones(cyclic)
 
     print("step 7: writing down results")
-    with open(output_file, 'w') as fp:
-        json.dump(cyclic, fp)
+    if len(cyclic)>0:
+        with open(output_file, 'w') as fp:
+            json.dump(cyclic, fp)
+    else:
+        logging.info('Warning: no cylic dependent NS records found. Stopping here   ')
+        sys.exit(output_file + "   cylic dependent NS records found. Stopping here ")
 
 
 if __name__ == '__main__':
@@ -950,8 +957,8 @@ if __name__ == '__main__':
     # Read the command line arguments
     argparser = argparse.ArgumentParser(
         description="Verifies timed out NS, either parent or child, and checks the ones with cyclic dependency")
-    argparser.add_argument('timeout-file', type=str, help="File with the timeout output from CyclicDetector.py")
-    argparser.add_argument('cycle-output', type=str, help="File to save the cycles detected")
+    argparser.add_argument('timeout_file', type=str, help="File with the timeout output from CyclicDetector.py")
+    argparser.add_argument('cycle_output', type=str, help="File to save the cycles detected")
     args = argparser.parse_args()
 
     find_cycles(timeout_file=args.timeout_file, output_file=args.cycle_output)
