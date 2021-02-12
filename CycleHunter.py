@@ -6,8 +6,9 @@ from CyclicDetector import map_nsset
 from findCyclicDep import find_cycles
 from fullDepParser import full_cycle_detection
 from zoneMatcher import zone_matcher
-
+from os import path
 import os
+import sys
 import argparse
 import logging
 from datetime import datetime
@@ -37,14 +38,29 @@ if __name__ == '__main__':
     # Step 1, extract all NS records
     zone_parser(zonefile=args.zonefile, zonename=args.origin, output_file=output1)
 
-    # Step 2, query the list of NS records and record the timeouts
-    map_nsset(output1, output2, workers=args.workers)
 
+    # Step 2, query the list of NS records and record the timeouts
+    #test if output1 exists, ie, if zone parser could read it.
+    if path.exists(output1)==True:
+        map_nsset(output1, output2, workers=args.workers)
+    else:
+        logging.info("ERROR parsing zone file: no records parsed.\nPlease run largeZoneParser.py to see if parsers your zone correctly")
+        sys.exit(output1 + "  has no NS records; stop here")
     # Step 3, Review the timed out NS records, and look for cyclic dependencies
-    find_cycles(output2, output3)
+
+    if path.exists(output2)==True:
+        find_cycles(output2, output3)
+    else:
+        logging.info("No NS records timed out. Code stops here")
+        sys.exit(output2 + " has no NS records that timeout. Code stops here")
 
     # Step 4, select the full cyclic dependencies from step 3
-    full_cycle_detection(output3, output4)
+
+    if path.exists(output3)==True:
+        full_cycle_detection(output3, output4)
+    else:
+        logging.info("No cyclic dependent records found. ")
+        sys.exit(output3 + " is empty as there is no cylic dependent records")
 
     # Step 5, determine how many zones are affected
     zone_matcher(cyclic_domain_file=output4, zonefile=args.zonefile, zoneorigin=args.origin, output_file=args.save_file)
