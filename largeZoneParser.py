@@ -11,7 +11,7 @@ def parseNS(s, extension=None):
         sp = re.split('[\s]+', s.lower())
         foundNS = False
         for item in sp:
-            if item == 'ns' and foundNS is False and 'rrsig' not in s.lower() and 'nsec' not in s.lower() and foundNS is False:
+            if item == 'ns' and foundNS is False and 'rrsig' not in s.lower() and 'nsec' not in s.lower():
                 ns_entry = sp[-1].rstrip()
                 if len(ns_entry) == 0:
                     # test if the one before the last has NS
