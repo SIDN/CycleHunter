@@ -64,15 +64,16 @@ def makeAuth(bugged):
     timeOutZones = dict()
 
     for ns, authoritySection in bugged.items():
-        for zone, nsset in authoritySection.items():
-            # If the zone is in the timeOutZones, get it, if not, generate an Authority object
-            temp_zone = timeOutZones.get(zone, Authority(zone))
+        if authoritySection is not None:
+            for zone, nsset in authoritySection.items():
+                # If the zone is in the timeOutZones, get it, if not, generate an Authority object
+                temp_zone = timeOutZones.get(zone, Authority(zone))
 
-            # add NSes
-            for i in nsset:
-                temp_zone.addNS(i.lower())
+                # add NSes
+                for i in nsset:
+                    temp_zone.addNS(i.lower())
 
-            timeOutZones[zone.lower()] = temp_zone
+                timeOutZones[zone.lower()] = temp_zone
 
     return timeOutZones
 
