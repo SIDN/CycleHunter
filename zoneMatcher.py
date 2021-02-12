@@ -111,9 +111,13 @@ def getCyclic(infile):
                 for k, v in tempD.items():
                     deps[k] = v
 
+
     for key, value in deps.items():
-        ret.add(key)
-        ret.add(value)
+        if 'fullDep' in key:
+            for ns1, ns2 in value.items():
+                ret.add(ns1)
+                ret.add(ns2)
+
 
     return ret
 
