@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # Read the command line arguments
     argparser = argparse.ArgumentParser(
         description="Reviews the dependency detection and filter outs only full cyclic dependencies")
-    argparser.add_argument('cycle-file', type=str, help="File with the output from findCyclicDep")
+    argparser.add_argument('cycle_file', type=str, help="File with the output from findCyclicDep")
     argparser.add_argument('output_file', type=str, help="File to save the full cycle cases")
     args = argparser.parse_args()
 
