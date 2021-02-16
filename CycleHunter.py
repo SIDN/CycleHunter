@@ -1,4 +1,4 @@
-# This script encapsulates all the steps detailed in README.mkd
+# This script encapsulates all the steps detailed in README.md
 # You can use this to run all the necessary steps
 
 from largeZoneParser import zone_parser
