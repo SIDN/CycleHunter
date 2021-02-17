@@ -65,4 +65,10 @@ docker build -t sidn/cyclehunter --no-cache .
 
 docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 CycleHunter.py --zonefile /data/org.txt --origin ".org" --save-file /data/org-final.out --base-dir /data --workers 6
 
+or to run specific step within the container as per the general instructions:
+
+e.g.
+
+docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 findCyclicDep.py /data/$output2 /data/$output3
+
 ```
