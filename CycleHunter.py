@@ -25,15 +25,16 @@ if __name__ == '__main__':
     argparser.add_argument('--zonefile', type=str, help="Zone file to detect loops on")
     argparser.add_argument('--origin', type=str, help="Origin of the zonefile, eg, .COM")
     argparser.add_argument('--save-file', type=str, help="File to save the list of domains affected by a fire loop")
+    argparser.add_argument('--base-dir', type=str, default=".", help="Default output directory")
     argparser.add_argument('--workers', type=int, default=CORES, help="Number of parallel workers to query for DNS data")
     args = argparser.parse_args()
 
     now = datetime.now().strftime("%F")
     file_prefix = f"{args.origin.strip('.')}.{now}"
-    output1 = f"{file_prefix}.step1.txt"
-    output2 = f"{file_prefix}.step2.txt"
-    output3 = f"{file_prefix}.step3.json"
-    output4 = f"{file_prefix}.step4.json"
+    output1 = f"{args.base_dir}{os.sep}{file_prefix}.step1.txt"
+    output2 = f"{args.base_dir}{os.sep}{file_prefix}.step2.txt"
+    output3 = f"{args.base_dir}{os.sep}{file_prefix}.step3.json"
+    output4 = f"{args.base_dir}{os.sep}{file_prefix}.step4.json"
 
     # Step 1, extract all NS records
     zone_parser(zonefile=args.zonefile, zonename=args.origin, output_file=output1)
