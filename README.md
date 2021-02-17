@@ -11,13 +11,14 @@
 To analyze a full zone, you can use `CycleHunter.py` as below
 
 ```
-python CycleHunter.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS> --workers <WORKERS>
+python CycleHunter.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS> --base-dir <BASE_DIR> --workers <WORKERS>
 ```
 
 Where
 - `ZONEFILE` is the file with the zone you want to analyze
 - `ORIGIN` is the zone represented by the `ZONEFILE`, for example, *.COM* or *.NL*
 - `FILE_TO_SAVE_AFFECTED_DOMAINS` is a JSON file that in the end will have the list of domains affected by full cycles
+- `BASE_DIR` is the base directory used to write the intermediate files
 - `WORKERS` is the number of parallel works that will use to send queries
 ### If you'd  like to do this by hand
 
