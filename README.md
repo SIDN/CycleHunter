@@ -50,3 +50,19 @@ Where
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
+
+### To run in containerized environment
+
+## Build
+
+```shell
+docker build -t sidn/cyclehunter --no-cache .
+```
+
+## Run
+
+```shell
+
+docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 CycleHunter.py --zonefile /data/org.txt --origin ".org" --save-file /data/org-final.out --base-dir /data --workers 6
+
+```
