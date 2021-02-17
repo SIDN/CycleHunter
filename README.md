@@ -50,3 +50,6 @@ Where
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
+
+### Required packages for Debian/Ubuntu
+`apt install python3-tqdm python3-multiprocess python3-dnspython`
