@@ -11,13 +11,14 @@
 To analyze a full zone, you can use `CycleHunter.py` as below
 
 ```
-python CycleHunter.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS> --workers <WORKERS>
+python CycleHunter.py --zonefile <ZONEFILE> --origin <ORIGIN> --save-file <FILE_TO_SAVE_AFFECTED_DOMAINS> --base-dir <BASE_DIR> --workers <WORKERS>
 ```
 
 Where
 - `ZONEFILE` is the file with the zone you want to analyze
 - `ORIGIN` is the zone represented by the `ZONEFILE`, for example, *.COM* or *.NL*
 - `FILE_TO_SAVE_AFFECTED_DOMAINS` is a JSON file that in the end will have the list of domains affected by full cycles
+- `BASE_DIR` is the base directory used to write the intermediate files
 - `WORKERS` is the number of parallel works that will use to send queries
 ### If you'd  like to do this by hand
 
@@ -50,6 +51,28 @@ Where
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
+
+### To run in containerized environment
+
+## Build
+
+```shell
+docker build -t sidn/cyclehunter --no-cache .
+```
+
+## Run
+
+```shell
+
+docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 CycleHunter.py --zonefile /data/org.txt --origin ".org" --save-file /data/org-final.out --base-dir /data --workers 6
+
+or to run specific step within the container as per the general instructions:
+
+e.g.
+
+docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 findCyclicDep.py /data/$output2 /data/$output3
+
+```
 
 ### Required packages for Debian/Ubuntu
 `apt install python3-tqdm python3-multiprocess python3-dnspython`
