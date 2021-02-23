@@ -1,4 +1,4 @@
-# This script encapsulates all the steps detailed in README.mkd
+# This script encapsulates all the steps detailed in README.md
 # You can use this to run all the necessary steps
 
 from largeZoneParser import zone_parser
@@ -10,6 +10,7 @@ from os import path
 import os
 import sys
 import argparse
+import asyncio
 import logging
 from datetime import datetime
 
@@ -42,7 +43,7 @@ if __name__ == '__main__':
     # Step 2, query the list of NS records and record the timeouts
     #test if output1 exists, ie, if zone parser could read it.
     if path.exists(output1)==True:
-        map_nsset(output1, output2, workers=args.workers)
+        asyncio.run(map_nsset(output1, output2, workers=args.workers))
     else:
         logging.info("ERROR parsing zone file: no records parsed.\nPlease run largeZoneParser.py to see if parsers your zone correctly")
         sys.exit(output1 + "  has no NS records; stop here")

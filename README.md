@@ -6,13 +6,6 @@
 * Check [cycleHunter.pdf](https://github.com/SIDN/CycleHunter/blob/main/cycleHunter.pdf) to see more about its architecture and how it works
 
 
-
-### DISCLAIMER on  Zone File Parser:
-
- * We **do not** use any lib to parse the zone files because they don't scale well, and we just need NS records
- * So depending if you're zone is tab or space separated, it may be the you'll have to ajust the line-by-line parser of `largeZoneParser.py` to your setup
-  * we already have two PR from folks with slightly different formatted zone files
-  
 ### To run it:
 
 To analyze a full zone, you can use `CycleHunter.py` as below
@@ -57,3 +50,6 @@ Where
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
+
+### Required packages for Debian/Ubuntu
+`apt install python3-tqdm python3-multiprocess python3-dnspython`

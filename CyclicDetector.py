@@ -1,14 +1,18 @@
 # new detector
+import dns.asyncresolver
+import dns.asyncquery
 import dns.rcode
 import dns.rdatatype
 import dns.resolver
+import async_lru
+import asyncio
 import datetime
 import json
 import random
 import multiprocessing
 import argparse
 import logging
-import tqdm
+import tqdm.asyncio
 from collections import defaultdict
 
 from domutils import getparent
@@ -38,91 +42,22 @@ from domutils import getparent
 
 1. write a class for NS
 2. write a class for NSSet
-3. wirte a class for domain
+3. write a class for domain
 
 '''
 
 
-class NS:
-    def __init__(self, servername):
-        self.serverName = servername
-        self.A = set()
-        self.AAAA = set()
-        self.NXDOMAIN = False
-        self.timeoutv4 = False
-        self.timeoutv6 = False
-        self.NOANSWERv4 = False
-        self.NOANSWERv6 = False
-        self.reachable = False
-        self.reachablev4 = False
 
-        self.reachablev6 = False
-
-    def IsReachable(self):
-        if not self.NXDOMAIN:
-            if len(self.A) > 0 or len(self.AAAA) > 0:
-                return True
-            else:
-                return False
-
-
-def fetch_glue(ns):
-    temp_ns = NS(ns)
-
-    try:
-        answer = dns.resolver.resolve(ns, 'A')
-        response = answer.response
-        # print(type(response))
-        rcode = response.rcode()
-        if rcode == dns.rcode.Rcode.NOERROR:
-            temp_ns.reachable = True
-            temp_ns.reachablev4 = True
-
-            temp_ns.A = set(str(addr) for addr in response.answer)
-        elif rcode == dns.rcode.Rcode.NXDOMAIN:
-            temp_ns.NXDOMAIN = True
-
-    except dns.resolver.Timeout:
-        temp_ns.timeoutv4 = True
-    except dns.resolver.NoAnswer:
-        temp_ns.NOANSWERv4 = True
-    except dns.resolver.NXDOMAIN:
-        temp_ns.NXDOMAIN = True
-
-    # now, check v6 only if v4 does not work
-    if not temp_ns.reachable and (temp_ns.NOANSWERv4 or temp_ns.timeoutv4):
-        try:
-            answer = dns.resolver.resolve(ns, 'AAAA')
-            response = answer.response
-            # print(type(response))
-            rcode = response.rcode()
-            if rcode == 0:
-                temp_ns.reachable = True
-                temp_ns.reachablev6 = True
-
-                temp_ns.AAAA = set(str(addr) for addr in response.answer)
-            elif rcode == 3:
-                temp_ns.NXDOMAIN = True
-        except dns.resolver.Timeout:
-            temp_ns.timeoutv6 = True
-        except dns.resolver.NoAnswer:
-            temp_ns.NOANSWERv6 = True
-        except dns.resolver.NXDOMAIN:
-            temp_ns.NXDOMAIN = True
-
-    return temp_ns
-
-
-def getParentNSes(k):
+@async_lru.alru_cache(maxsize=None)
+async def getParentNSes(k):
     # get the parent
     parent = getparent(k)
     toBeRet = []
 
     try:
         try:
-            answer = dns.resolver.resolve(parent, 'NS')
+            answer = await dns.asyncresolver.resolve(parent, 'NS')
             response = answer.response
-            # print(type(response))
             rcode = response.rcode()
 
             # parent is valid
@@ -147,22 +82,20 @@ def getParentNSes(k):
                 logging.info(f"{parent} SERVFAIL")
         except Exception as e:
             logging.error(f"{k}: NS from parent has failed - {e}")
-            # print(type(e))
             return 'ERROR'
     except Exception as e:
         logging.error(f"{k}: failed to retrieve NS answers - {e}")
     return toBeRet
 
 
-def getNS(parent):
+@async_lru.alru_cache(maxsize=None)
+async def getNS(parent):
     # get the parent
-
     toBeRet = []
 
     try:
-        answer = dns.resolver.resolve(parent, 'NS')
+        answer = await dns.asyncresolver.resolve(parent, 'NS')
         response = answer.response
-        # print(type(response))
         rcode = response.rcode()
 
         # parent is valid
@@ -189,12 +122,12 @@ def getNS(parent):
     return toBeRet
 
 
-def getA(ns):
+@async_lru.alru_cache(maxsize=None)
+async def getA(ns):
     address = []
     try:
-        answer = dns.resolver.resolve(ns, 'A')
+        answer = await dns.asyncresolver.resolve(ns, 'A')
         response = answer.response
-        # print(type(response))
         rcode = response.rcode()
         if rcode == dns.rcode.NOERROR:
             try:
@@ -213,12 +146,12 @@ def getA(ns):
     return address
 
 
-def getSOA(ns):
+@async_lru.alru_cache(maxsize=None)
+async def getSOA(ns):
     # try to get a SOA, if it fails return ERROR
     try:
-        answer = dns.resolver.resolve(ns, 'SOA')
+        answer = await dns.asyncresolver.resolve(ns, 'SOA')
         response = answer.response
-        # print(type(response))
         rcode = response.rcode()
         if rcode == dns.rcode.NOERROR:
             return 0
@@ -231,7 +164,8 @@ def getSOA(ns):
         return 'ERROR'
 
 
-def retrieveNSFromParent(fqdn, ip_from_auth_server):
+@async_lru.alru_cache(maxsize=None)
+async def retrieveNSFromParent(fqdn, ip_from_auth_server):
     queryType = dns.rdatatype.NS
 
     try:
@@ -242,7 +176,7 @@ def retrieveNSFromParent(fqdn, ip_from_auth_server):
 
     ret = defaultdict(list)
     try:
-        response = dns.query.udp(query, ip_from_auth_server, timeout=5)
+        response = await dns.asyncquery.udp(query, ip_from_auth_server, timeout=5)
     except Exception as e:
         logging.error(f"Failed {fqdn} query to {ip_from_auth_server} - {e}")
         response = "NA"
@@ -269,8 +203,9 @@ def retrieveNSFromParent(fqdn, ip_from_auth_server):
                 return 'NXDOMAIN'
 
 
-def probe_ns(nsname):
-    localSoa = getSOA(nsname)
+@async_lru.alru_cache(maxsize=None)
+async def probe_ns(nsname):
+    localSoa = await getSOA(nsname)
     res = None
     # only analyze nses that have no soa
 
@@ -283,10 +218,9 @@ def probe_ns(nsname):
         tempTest = getparent(nsname)
 
         if tempTest != "" and len(tempTest.split(".")) < 2:
-            # print(str(tempTest))
             logging.info(f"{nsname} is already at the top (tld), skip it")
         else:
-            parentNS = getParentNSes(nsname)
+            parentNS = await getParentNSes(nsname)
 
             logging.info(f"the parent domain of {nsname} is {parentNS}")
             if isinstance(parentNS, list):
@@ -313,16 +247,16 @@ def probe_ns(nsname):
                         tempP = tempP + "."
                 else:
                     print(f"tempP is {tempP}")
-                parentNS = getNS(tempP)
+                parentNS = await getNS(tempP)
                 timeOUtButNotFromParent = True
                 logging.info(f"{nsname} has timed out via normal resolution")
 
             if not bailiStatus:
                 for singleNS in parentNS:
                     if not isOK:
-                        tempA = getA(singleNS)
+                        tempA = await getA(singleNS)
                         if tempA != -1:
-                            tempNSParent = retrieveNSFromParent(nsname, tempA)
+                            tempNSParent = await retrieveNSFromParent(nsname, tuple(sorted(tempA)))
                             # we only add domains here if they timeout
                             if timeOUtButNotFromParent and isinstance(tempNSParent, dict):
                                 res = tempNSParent
@@ -339,16 +273,22 @@ def probe_ns(nsname):
     return nsname, res
 
 
-def probeNSes(setOfNSes, workers=5):
+async def probe_ns_limited_concurrency(nsname, sem):
+    async with sem:
+        return await probe_ns(nsname)
+
+
+async def probeNSes(setOfNSes, workers=5):
     results = dict()
 
     ns_total = len(setOfNSes)
-    counter = 0
-    with multiprocessing.Pool(processes=workers) as pool:
-        for nsname, probe_res in tqdm.tqdm(pool.imap_unordered(probe_ns, setOfNSes, chunksize=15), total=ns_total):
-            counter += 1
-            if probe_res is not None:
-                results[nsname] = probe_res
+
+    sem = asyncio.Semaphore(value=workers)
+
+    aws = [probe_ns_limited_concurrency(nsname, sem) for nsname in setOfNSes]
+    for coro in tqdm.asyncio.tqdm.as_completed(aws):
+        nsname, res = await coro
+        results[nsname] = res
 
     return results
 
@@ -365,7 +305,7 @@ def readFAST(filename):
     * at least one it's NS point to another NS/CNAME '''
 
 
-def map_nsset(nsset_file, output_file, limit=None, workers=5):
+async def map_nsset(nsset_file, output_file, limit=None, workers=5):
     logging.info('start reading zone file')
     before = datetime.datetime.now()
 
@@ -383,7 +323,7 @@ def map_nsset(nsset_file, output_file, limit=None, workers=5):
         random.shuffle(lRecords)
     else:
         lRecords = random.sample(nsRecords, limit)
-    timeOutNSes = probeNSes(lRecords, workers=workers)
+    timeOutNSes = await probeNSes(lRecords, workers=workers)
     with open(output_file, 'w') as fp:
         json.dump(timeOutNSes, fp)
 
@@ -401,6 +341,9 @@ if __name__ == '__main__':
     argparser.add_argument('output_file', type=str, help="File to save the mapping")
     argparser.add_argument('--limit', type=int, required=False, default=None,
                            help="Restrict the list of nameserver, use for testing")
+    argparser.add_argument('--workers', type=int, default=5,
+                           help="Number of parallel workers to query for DNS data")
     args = argparser.parse_args()
 
-    map_nsset(args.nsset_file, args.output_file, limit=args.limit)
+    asyncio.run(map_nsset(args.nsset_file, args.output_file, limit=args.limit,
+                          workers=args.workers))
