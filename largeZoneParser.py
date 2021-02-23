@@ -45,10 +45,11 @@ def zone_parser(zonefile=None, zonename=None, output_file=None):
 
     if len(nsset) > 0:
         with open(output_file, 'w') as aus:
+            logging.info('Info reading zonefile for domain: {}'.format(zonefile))
             for k in nsset:
                 aus.write(f"{k}\n")
     else:
-        logging.info('Error with largeZoneParser.py: could not extract NS records from zone file')
+        logging.info('Error with largeZoneParser.py: could not extract NS records from zone file'.format(zonefile))
         logging.info('Please run CycleHunter step-by-step and changeZoneParser.py to your zone synthax')
         sys.exit(output_file + "  has no NS records; stop here. Plase check if largeZoneParser correctly parsers your zone file")
 
