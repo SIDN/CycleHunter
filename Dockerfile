@@ -1,7 +1,9 @@
-FROM pypy:3.7-slim
+FROM python:3.9.2-slim-buster
 
-RUN pip install dnspython tqdm
+ENV APP_DIR /cyclehunter
 
-COPY *.py /cyclehunter/
+WORKDIR ${APP_DIR}
 
-WORKDIR /cyclehunter
+COPY *.py requirements.txt ${APP_DIR}/
+
+RUN pip install -r requirements.txt
