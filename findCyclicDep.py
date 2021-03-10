@@ -1,9 +1,10 @@
+import argparse
+import json
+import logging
+import sys
+
 import dns.resolver
 from dns import resolver
-import json
-import sys
-import argparse
-import logging
 
 from domutils import getparent
 
@@ -18,6 +19,9 @@ class Authority(object):
         self.zoneHasAtLeastOneNSinBailiwick = False
         self.allNSinBailiwick = False
         self.resolvable = None
+        #atrributes for glues
+        self.parentNSRecords= None
+        self.glueRecords = None
 
     def addNS(self, ns):
         if ns[-1] != ".":
@@ -31,12 +35,16 @@ class Authority(object):
             #    print('wait')
             parent = getparent(i)
             parentLenght = len(parent.split("."))
-            if parentLenght> 0:
-                if parent[-1] != ".":
-                    parent = parent + "."
+            if parentLenght > 0:
+                try:
+                    if parent[-1] != ".":
+                        parent = parent + "."
+                except:
+                    print("parent bugged is : " + parent)
             else:
                 print("CHECK: parent has zero length")
             isParentTLD = False
+            parentLenght = len(parent.split("."))
             # if len==2 , then is a TLD
             if parentLenght == 2:
                 isParentTLD = True
@@ -59,6 +67,41 @@ class Authority(object):
 
         return self.extZonesItDepends
 
+    def calcParentZonesFromGlue(self):
+        inZoneCounter = 0
+        for i in self.parentNSRecords:
+            # if 'bio-bak' in i:
+            #    print('wait')
+            parent = getparent(i)
+            parentLenght = len(parent.split("."))
+            if parentLenght > 0:
+                if parent[-1] != ".":
+                    parent = parent + "."
+            else:
+                print("CHECK: parent has zero length")
+            isParentTLD = False
+            parentLenght = len(parent.split("."))
+            # if len==2 , then is a TLD
+            if parentLenght == 2:
+                isParentTLD = True
+                self.zoneHasAtLeastOneNSinBailiwick = True
+                inZoneCounter = inZoneCounter + 1
+                self.zoneItDepends.add(i)
+            elif parentLenght > 2 and parent != self.zone:
+                self.zoneItDepends.add(parent)
+            else:
+                self.zoneHasAtLeastOneNSinBailiwick = True
+                self.zoneItDepends.add(parent)
+                inZoneCounter = inZoneCounter + 1
+
+        if inZoneCounter == len(self.NSrecords):
+            self.allNSinBailiwick = True
+
+        self.extZonesItDepends = self.zoneItDepends
+        if self.zone in self.extZonesItDepends:
+            self.extZonesItDepends.remove(self.zone)
+
+        return self.extZonesItDepends
 
 def makeAuth(bugged):
     timeOutZones = dict()
@@ -90,7 +133,9 @@ def getZonesWithoutInBailiwickServer(timeOutZones):
 
         if not v.allNSinBailiwick:
             timeOutWOBailick[k] = v
-
+        else:
+            pass;
+            #print("only in bailiwick")
         # if v.zoneHasAtLeastOneNSinBailiwick!=v.allNSinBailiwick:
         #    print('wait here')
     return timeOutWOBailick
@@ -283,10 +328,11 @@ def retrieveNSFromParent(fqdn, ipFromAuthServer):
                 return 'NXDOMAIN'
 
 
-def getNS2(parent):
+def getNSrecordForDomain(parent):
     # get the parent
-
+    #has to support servfail
     toBeRet = []
+    retDict = dict()
 
     localRes = resolver.Resolver()
     localRes.timeout = 5
@@ -296,9 +342,80 @@ def getNS2(parent):
 
         answer = localRes.resolve(parent, 'NS')
     except Exception as e:
+        print(str(e))
         if 'timed out' in str(e):
             toBeRet.append('TIMEOUT')
             return toBeRet
+        elif 'does not exist in' in str(e):
+            print('does not exist')
+            toBeRet.append('NXDOMAIN')
+            return toBeRet
+
+        elif "The DNS response does not contain an answer" in str(e):
+            if 'response' in e.kwargs:
+
+                authRes=e.kwargs['response'].authority
+                additional = e.kwargs['response'].additional
+                if len(authRes)>0:
+                    rdtype=authRes[0].rdtype
+                    toBeRet.append("NO ANSWER, rdtype is " + str(rdtype))
+                    return toBeRet
+                elif len(additional)>0:
+                        rdtype = additional[0].rdtype
+                        toBeRet.append("NO ANSWER, rdtype is " + str(rdtype))
+                        return toBeRet
+                else:
+                    toBeRet.append("NO ANSWER or additonal or auth")
+                    return toBeRet
+
+
+        else:
+
+            try:
+                if e.kwargs['errors'][0][3]=="SERVFAIL":
+
+                    #if it failed, then ask parent zone for its NS
+                    parentZONE=getparent(parent)
+                    nsparent=getNS(parentZONE)
+                    #if nsparent is a list, is because it worked
+
+                    resolvable=False
+                    if isinstance(nsparent, list):
+                        for singleNS in nsparent:
+                            ipv4=getA(singleNS)
+
+                            #has IPv4, let's query
+                            if (isinstance(ipv4, list)):
+                                nsFromParent=retrieveNSFromParent(parent,ipv4)
+                                if  isinstance(nsFromParent, dict):
+                                    #see if glue is there
+                                    for k, v in nsFromParent.items():
+                                        for nsAtParent in v:
+                                            gluePresent=hasGlue(nsAtParent,ipv4)
+
+                                            if  (isinstance(gluePresent, list)):
+                                                #print("domain has glue")
+                                                retDict['domain']=parent
+                                                retDict['NSSetFromParent']=v
+
+                                                mappings=dict()
+                                                mappings[nsAtParent]=gluePresent
+                                                if 'NSandGlue' not in retDict:
+                                                    tempL=[]
+                                                    tempL.append(mappings)
+                                                    retDict['NSandGlue']=tempL
+                                                else:
+                                                    tempL = retDict['NSandGlue']
+                                                    tempL.append(mappings)
+                                                    retDict['NSandGlue'] = tempL
+
+
+                                    return retDict
+
+            except Exception as w:
+                #print(str(w))
+                pass;
+
     if answer != '':
 
         response = answer.response
@@ -344,7 +461,8 @@ def findParents(x):
     soaRec = getSOA(x)
 
     # has soa
-    if len(soaRec) == 0:
+
+    if isinstance(soaRec,dict) and len(soaRec) == 0:
         logging.warning(f"Domain {x} has no soa")
         parentX = getparent(x)
         if parentX[-1] != ".":
@@ -404,11 +522,16 @@ def findParents(x):
         for k, v in soaRec.items():
             parentsK = ''
             try:
-                parentsK = getNS2(k)
+                parentsK = getNSrecordForDomain(k)
             except  Exception as e:
                 print("failed to get NS from zone that has soa on findParents " + str(k))
                 print(e)
                 print(type(e))
+
+            if isinstance(parentsK, list):
+                if 'NO ANSWER' in parentsK[0]:
+                    print("broken soa")
+                    return -3
 
             if parentsK != '':
 
@@ -417,14 +540,64 @@ def findParents(x):
                     tempAuth.addNS(singleNS)
                 tempAuth.calcParentZones()
                 results[x] = tempAuth.zoneItDepends
+                #shall we stop here
+                #results[x]=tempAuth.NSrecords
+                #print("debug here now")
                 return results
 
             else:
                 print('FOUND SOA< but not NS, could not happen')
                 return -2
 
+def hasGlue(ns,authSeverIPv4List):
+    ret = False
+    localRes = resolver.Resolver(configure=True)
 
-def getDepZonesRecursive(x):
+    localRes.nameservers=authSeverIPv4List
+
+    localRes.timeout = 5
+    localRes.lifetime = 5
+    address = []
+
+    try:
+
+        answer = localRes.query(ns)
+    except  Exception as e:
+
+        response = e.kwargs['response']
+        try:
+            #glue has additonal section
+            localA = response.additional
+            for k in localA:
+                if str(k.name)==ns:
+                    for addr in k.items:
+                        address.append(str(addr))
+        except:
+            print('no A')
+            pass;
+    try:
+
+        answer = localRes.query(ns, 'AAAA')
+    except  Exception as e:
+
+        response = e.kwargs['response']
+        try:
+            #glue has additonal section
+            localA = response.additional
+            for k in localA:
+                if str(k.name)==ns:
+                    for addr in k.items:
+                        address.append(str(addr))
+        except:
+            print('no AAAA')
+            pass;
+
+    s=set(address)
+    address=list(s)
+    return address
+
+
+def getZoneDependencies(x):
     '''
     this method gets the zones each NS depends on, and put them in a set or something
     the idea is to determine on what zones domain x depends on
@@ -433,19 +606,39 @@ def getDepZonesRecursive(x):
     1. try to get the NSes of the X. If it works, fine! add them and return a dict
     2. If it fails, then  recursively get the parent until someone responds with NS.
     And from that, get is NS records
+
+    #has to see if it has GLUE if in-bailiwick
     '''
+
+
 
     isOK = False
     NSworks = False
     results = dict()
     parentNS = ''
     try:
-        parentNS = getNS2(x)
+        parentNS = getNSrecordForDomain(x)
         if isinstance(parentNS, list):
             if len(parentNS) > 0:
-                if parentNS[0] != 'TIMEOUT':
+                if parentNS[0] != 'TIMEOUT' and ('NO ANSWER' not in parentNS[0]):
                     isOK = True
                     NSworks = True
+
+        #then this thing has glue at parent, it just glue not working so it's not cyclic depedent
+        elif isinstance(parentNS,dict):
+            if x==parentNS['domain']:
+                tempAuth = Authority(x)
+                tempAuth.parentNSRecords=parentNS['NSSetFromParent']
+                tempAuth.glueRecords=parentNS['NSandGlue']
+                tempAuth.calcParentZonesFromGlue()
+                whatZones = tempAuth.zoneItDepends
+                if len(whatZones) == 0:
+                    whatZones = ''
+                results[x] = tempAuth
+                return results
+
+        else:
+            print("what the hell happened")
     except Exception as e:
         print("failed to get NS from zone" + str(x))
         print(e)
@@ -460,28 +653,39 @@ def getDepZonesRecursive(x):
             *  dict - it worked
             * -1: no soa
             * -2 : soa, but no ns (should never happen I guess)
+            * -3 : broken soa
             
             '''
+            isRootParent=False
             if isinstance(parentNSX, dict):
-                isOK = True
-                # then, convert it to list
-                tempP = []
+                isRootParent=False
                 for k, v in parentNSX.items():
-                    for singleNS in v:
-                        parentNS.append(singleNS)
+                    if 'root-servers.net' in v:
+                        isRootParent=True
 
-            elif parentNSX == -1 or parentNSX == -2:
-                isOK = False
-            elif parentNS == 'NXDOMAIN':
-                results[x] = 'NXDOMAIN'
-                return results
+            if isRootParent==False:
+                if isinstance(parentNSX, dict):
+                    isOK = True
+                    # then, convert it to list
+                    tempP = []
+                    for k, v in parentNSX.items():
+                        for singleNS in v:
+                            if 'root-servers.net' not in singleNS:
+                                parentNS.append(singleNS)
+
+                elif parentNSX == -1 or parentNSX == -2  or parentNSX == -3:
+                    isOK = False
+                    return "SOA PROBLEMS"
+                elif parentNS == 'NXDOMAIN':
+                    results[x] = 'NXDOMAIN'
+                    return results
 
         except Exception as e:
             print("failed to find parent NS from zone" + str(x))
             print(e)
             print(type(e))
 
-    # this is when you can retrive the NS of the parent; no biggie here, when the NS is reachable
+    # this is when you can retrieve the NS of the parent; no biggie here, when the NS is reachable
     if isOK == True:
         tempAuth = Authority(x)
         for k in parentNS:
@@ -617,6 +821,19 @@ def getSOA(ns):
     # try to get a SOA, if it fails return ERROR
     try:
         answer = localRes.resolve(ns, 'SOA')
+        tempSOA=[]
+        authZone=''
+        for k in answer.response.answer:
+            authZone = str(k.name)
+            for singleItem in k.items:
+                tempV = str(singleItem.mname)
+                tempSOA.append(tempV)
+        soa[authZone] = tempSOA
+        return soa
+
+
+        print("parse here soa if it gests")
+
     except Exception as e:
         print(e)
         if 'does not contain an answer' in str(e):
@@ -648,277 +865,202 @@ def getSOA(ns):
             return "ERROR"
 
 
-def sortDeps(codependency, timeOutWOBailick):
-    cyclicDependentZones = dict()
-    cyclicDependentZones['notResolvable'] = dict()
-
-    cyclicDependentZones['Resolvable'] = dict()
-
-    clearedForNX = set()
-    clearedZonesForOK = set()
-
-    bailiwickZonesOK = set()
-    domainsThatFailedBUtNotCyclicDependency = set()
-    total = str(len(codependency))
-    counter = 0
-    for zone, extDepentZones in codependency.items():
-        reverseDep = set()
-        counter = counter + 1
-        logging.info(f"Analyzying {zone}. Domain {counter}/{total}")
-
-        # to be cyclic dependent, all zones here must from tempDepZone must point to zone
-
-        for singleZone in extDepentZones:
-
-            externalAgain = ''
-            localDepZones = ''
-            if singleZone in timeOutWOBailick:
-                localDepZones = timeOutWOBailick[singleZone].zoneItDepends
-
-            else:
-                # externalAgain = getDepZones(singleZone)
-                externalAgain = getDepZonesRecursive(singleZone)
-
-                # if we get a dict
-                if isinstance(externalAgain, dict):
-                    localDepZones = set()
-                    for ext2zone, dep2zone in externalAgain.items():
-                        if isinstance(dep2zone, str) == False:
-                            for singelDep2Zone in dep2zone.zoneItDepends:
-                                if dep2zone != '':
-                                    localDepZones.add(singelDep2Zone.lower())
-
-                elif externalAgain == "NXDOMAIN":
-                    clearedForNX.add(zone)
-                elif externalAgain == "OK":
-                    clearedZonesForOK.add(zone)
-
-                elif externalAgain == "BROKEN":
-                    print("broken NS")
-
-            # now, process localDepZone
-            hasDiffZone = False
-            for k in localDepZones:
-                if k.lower() == zone.lower() and hasDiffZone == False:
-                    # domain is cyclic depednet
-                    if zone.lower() not in cyclicDependentZones:
-
-                        resolvable = timeOutWOBailick[zone.lower()].resolvable
-                        if resolvable == True:
-                            tempL = cyclicDependentZones['Resolvable']
-                            tempL[zone.lower()] = singleZone
-                            cyclicDependentZones['Resolvable'] = tempL
-                        else:
-                            tempL = cyclicDependentZones['notResolvable']
-                            tempL[zone.lower()] = singleZone
-                            cyclicDependentZones['notResolvable'] = tempL
-
-                    else:
-                        print('it shoudl not get here I guess')
-
-                elif not hasDiffZone:
-                    # print(zone.lower() + ' is not cyclic dependent')
-                    domainsThatFailedBUtNotCyclicDependency.add(zone.lower())
-                    hasDiffZone = True
-                elif hasDiffZone:
-                    pass
-
-    return cyclicDependentZones
-
 
 def sortDepsNew(timeOutWOBailick):
     """
     codependency= list of all zones that the timeout NSes depend
     timeOutWOBailick =dictionary with Authority  objects
-
     goal : iterate over codependency and return a dict like timeOutWithoutBailick
-
     """
 
-    # dict with the new crated Auth
+    # dict with the new created Authority objects
     newAuth = dict()
 
-    # to be returned
+    # dict/json that will be returned
     cyclicDependentZones = dict()
     cyclicDependentZones['partialDep'] = dict()
     cyclicDependentZones['fullDep'] = dict()
     cyclicDependentZones['fullDepWithInzone'] = dict()
 
-    # unique zones from all timeout domais
+    # unique zones from all timeout domains, and their deps, in a single dict
     zoneAndDeps = getDeps(timeOutWOBailick)
 
-    # dict clear with zones with NX
+    # zones with NX domains in their NSSet
     clearedForNX = []
-
     # OK zones now
     clearedZonesForOK = []
-
     # clear with multiple zones
     clearedZonesForMultipleZones = []
-
     # other failed domains
     domainsThatFailedBUtNotCyclicDependency = []
 
+    #domains with glue at parent
+    domainsGlueAtParent=[]
+
+    #dlame delegations
+    clearedForLame=[]
+    #domains  with broken NS (no soa)
+    domainsBrokeNS=[]
+
+    #soa problems
+    domainsSoaProblems=[]
     total = str(len(zoneAndDeps))
     counter = 0
 
-    for zone, extDepentZones in zoneAndDeps.items():
-        reverseDep = set()
+    for zone, dependentZone in zoneAndDeps.items():
+
         counter = counter + 1
-        print('analyzying ' + zone + ". Domain " + str(counter) + " from " + total)
+        print('analyzing ' + zone + " Domain " + str(counter) + " from " + total)
 
         # to be cyclic dependent, all zones here must from tempDepZone must point to zone
-        if True:
-            # evaluate every single zone they depend on
-            for singleZone in extDepentZones:
+        # evaluate every single zone they depend on
 
-                localDepZones = ''
-                tempAuthDict = dict()
-                if singleZone in timeOutWOBailick:
+        #1st step: get a
+        for eachDepZone in dependentZone:
+            #the dict below will store all zones
+            AuthorityDepZones = dict()
+            localDepZones = set()
+            if eachDepZone in timeOutWOBailick:
+                AuthorityDepZones[eachDepZone] = timeOutWOBailick[eachDepZone]
+            elif eachDepZone in newAuth:
+                AuthorityDepZones[eachDepZone] = newAuth[eachDepZone]
+            else:
+                AuthorityDepZones = getZoneDependencies(eachDepZone)
 
-                    tempAuthDict[singleZone] = timeOutWOBailick[singleZone]
-                    localDepZones = set()
-                    for ext2zone, dep2zone in tempAuthDict.items():
-                        if isinstance(dep2zone, str) == False:
-                            for singelDep2Zone in dep2zone.zoneItDepends:
-                                if dep2zone != '':
+
+
+            # analyze retuns from the subDepZoneAuthority
+            #if is a dict is because it is resolvable at the parent
+            # if gets other erros, we count them below
+            if isinstance(AuthorityDepZones, dict):
+                localDepZones = set()
+                for depzone, dep_depzone in AuthorityDepZones.items():
+                    #fix here duane's comments about glue
+                    if isinstance(dep_depzone, str) == False:
+                        if dep_depzone.glueRecords!= None:
+                            #has glue at parent
+                            domainsGlueAtParent.append(dep_depzone)
+                        else:
+                            #here is when it can occur for real
+                            for singelDep2Zone in dep_depzone.zoneItDepends:
+                                if dep_depzone != '':
                                     localDepZones.add(singelDep2Zone.lower())
 
-                else:
-
-                    tempAuthDict = getDepZonesRecursive(singleZone)
-
-                    # if we get a dict
-                    if isinstance(tempAuthDict, dict):
-                        localDepZones = set()
-                        for ext2zone, dep2zone in tempAuthDict.items():
-                            if isinstance(dep2zone, str) == False:
-                                for singelDep2Zone in dep2zone.zoneItDepends:
-                                    if dep2zone != '':
-                                        localDepZones.add(singelDep2Zone.lower())
-
-                    elif tempAuthDict == "NXDOMAIN":
-                        clearedForNX.append(zone)
-                    elif tempAuthDict == "OK":
-                        clearedZonesForOK.append(zone)
-
-                    elif tempAuthDict == "BROKEN":
-                        print("broken NS")
-
-                # add tempAuthDict to the new domains
-                hasDiffZone = False
-                if isinstance(tempAuthDict, dict):
-                    for k, v in tempAuthDict.items():
-                        v.calcParentZones()
-                        newAuth[k] = v
-
-                        if v.extZonesItDepends != None:
-                            hasDiffZone = True
-
-                    # now, process localDepZone
-                    if len(localDepZones) > 0:
-
-                        # there are two cateogries of codep: one fullY (1to1, then there's one only localDepzone)
-                        # full DEP
-                        if len(localDepZones) == 1:
-
-                            for k in localDepZones:
-
-                                # the error is here: must be not ONLY zone, but ALL
-
-                                if k.lower() == zone.lower() and hasDiffZone == True:
-                                    # domain is cyclic depednet
-
-                                    if timeOutWOBailick[zone].zoneHasAtLeastOneNSinBailiwick == False:
-
-                                        if zone.lower() not in cyclicDependentZones['fullDep']:
-
-                                            fp = cyclicDependentZones['fullDep']
-                                            fp[zone] = singleZone
-                                            cyclicDependentZones['fullDep'] = fp
-
-                                        else:
-                                            print('it shoudl not get here I guess')
-
-                                    else:
-
-                                        if zone.lower() not in cyclicDependentZones['fullDepWithInzone']:
-                                            fp = cyclicDependentZones['fullDepWithInzone']
-                                            fp[zone] = singleZone
-                                            cyclicDependentZones['fullDepWithInzone'] = fp
 
 
-                                elif hasDiffZone == False:
-                                    # print(zone.lower() + ' is not cyclic dependent')
-                                    domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
-                                    # hasDiffZone=True
-                                else:
-                                    # print('waht now')
-                                    pass
-                            else:
-                                clearedZonesForMultipleZones.append(zone.lower())
 
+            #now, analyze these authority AuthorityDepZones object, and see if has cyclic dependencies
+            hasDiffZone = False
+            if isinstance(AuthorityDepZones, dict):
+                for depzone, dep_depzone in AuthorityDepZones.items():
 
-                        elif len(localDepZones) > 1:
-                            for k in localDepZones:
+                    dep_depzone.calcParentZones()
+                    if depzone not in newAuth:
 
-                                # the error is here: must be not ONLY zone, but ALL
-
-                                if k.lower() == zone.lower() and hasDiffZone == True:
-                                    # domain is cyclic depednet
-                                    if zone.lower() not in cyclicDependentZones['partialDep']:
-                                        print("object has no resolvable, damn it ")
-                                        pd = cyclicDependentZones['partialDep']
-                                        pd[zone.lower()] = singleZone
-                                        cyclicDependentZones['partialDep'] = pd
-
-
-                                    else:
-                                        print('it shoudl not get here I guess')
-
-                                elif hasDiffZone == False:
-                                    # print(zone.lower() + ' is not cyclic dependent')
-                                    domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
-                                    # hasDiffZone=True
-                                else:
-                                    # print('waht now')
-                                    pass
-                            else:
-                                clearedZonesForMultipleZones.append(zone.lower())
+                        newAuth[depzone] =dep_depzone
+                    if isinstance(dep_depzone.extZonesItDepends, set) == False:
+                        print('DEBUG HERE')
+                    if dep_depzone.extZonesItDepends != None:
+                        if isinstance(dep_depzone.extZonesItDepends, set):
+                            if len(dep_depzone.extZonesItDepends) > 0:
+                                hasDiffZone = True
                         else:
-                            print('zone has been eval')
-                            pass
+                            print('DEBUG HERE 2')
+                # now, process localDepZone
+                # localDepZones it is all zones that the zone in question depends
+
+
+                if len(localDepZones) >= 1:
+
+                    # there are two cateogries of codep: one fullY (1to1, then there's one only localDepzone)
+                    # full DEP
+                    if len(localDepZones) == 1:
+
+                        for k in localDepZones:
+
+                            if k.lower() == zone.lower() and hasDiffZone == True:
+                                if timeOutWOBailick[zone].zoneHasAtLeastOneNSinBailiwick == False:
+                                    if zone.lower() not in cyclicDependentZones['fullDep']:
+                                        fullyDepedent = cyclicDependentZones['fullDep']
+                                        fullyDepedent[zone] = eachDepZone
+                                        cyclicDependentZones['fullDep'] = fullyDepedent
+                                else:
+                                    # if a domain has at least one record in bailiwick it can't be fully cyclic dependent
+                                    # because it in theory has a glue
+                                    if zone.lower() not in cyclicDependentZones['fullDepWithInzone']:
+                                        fullDepWithInZoneNS = cyclicDependentZones['fullDepWithInzone']
+                                        fullDepWithInZoneNS[zone] = eachDepZone
+                                        cyclicDependentZones['fullDepWithInzone'] = fullDepWithInZoneNS
+
+                            elif hasDiffZone == False:
+                                # print(zone.lower() + ' is not cyclic dependent')
+                                domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
+                                # hasDiffZone=True
+                            elif hasDiffZone==True:
+                                clearedForLame.append(zone.lower())
+
+                            else:
+                                clearedZonesForMultipleZones.append(zone.lower())
+                                print("Debug this stuff")
+
+                    #if there is more than one zone that this one depends, then it can't be cyclic depedent
+                    #like, one to one.
+                    # but it can be partially dependent
+
+                    elif len(localDepZones) > 1:
+
+                        zonesCyclicDep=0
+                        for k in localDepZones:
+
+                            # the error is here: must be not ONLY zone, but ALL
+                            #print("the error is here: must be not ONLY zone, but ALL here")
+                            if k.lower() == zone.lower() and hasDiffZone == True:
+                                # domain is cyclic depednet
+                                zonesCyclicDep=zonesCyclicDep+1
+                                if zone.lower() not in cyclicDependentZones['partialDep']:
+                                    #print("object has no resolvable, damn it ")
+                                    pd = cyclicDependentZones['partialDep']
+                                    pd[zone.lower()] = eachDepZone
+                                    cyclicDependentZones['partialDep'] = pd
+
+
+                            elif hasDiffZone == False:
+                                # print(zone.lower() + ' is not cyclic dependent')
+                                domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
+                                # hasDiffZone=True
+                            else:
+                                # print('waht now')
+                                pass
+                        else:
+                            clearedZonesForMultipleZones.append(zone.lower())
+                    else:
+                        #print('zone has been eval already')
+                        pass
+                else:
+                    # print("zone has no issues i guess ")
+                    clearedZonesForOK.append(zone.lower())
+
+            elif AuthorityDepZones == "NXDOMAIN":
+                clearedForNX.append(zone)
+            elif AuthorityDepZones == "OK":
+                clearedZonesForOK.append(zone)
+            elif AuthorityDepZones == "BROKEN":
+                domainsBrokeNS.append(zone)
+            elif AuthorityDepZones== "SOA PROBLEMS":
+                domainsSoaProblems.append(zone)
+
+
+    print("stats from the timeout domains evaluation:\n")
+    print("Cleared for being resolvable now: " + str(len(clearedZonesForOK)))
+    print("Cleared for having multipel zones and at least one responsive: " + str(len(clearedZonesForMultipleZones)))
+    print("Cleared for NXDOMAIN:" + str(len(clearedForNX)))
+    print("clear for having lame delegations:" + str(len(clearedForLame)))
+    print("Cleared for other purposes but not cyclic dependency: " + str(len(domainsThatFailedBUtNotCyclicDependency)))
+    print("Cleared for having glue at parents: " + str(len(domainsGlueAtParent)))
+    print("Cleared for having SOA problems: " + str(len(domainsSoaProblems)))
+    print("Total cyclic dependent zones:" + str(len(cyclicDependentZones['fullDep'])))
+
     return cyclicDependentZones
-
-
-def classZones(domains):
-    ret = dict()
-    ret['FullyCyclic'] = []
-    ret['CyclicBUtResolvableGivenInZone'] = []
-    for k, v in domains.items():
-
-        parentsK = ''
-        try:
-            parentsK = getNS2(k)
-        except  Exception as e:
-            print("failed to get NS from zone that has soa on findParents " + str(k))
-            print(e)
-            print(type(e))
-
-        if parentsK != '':
-            tempL = ret['FullyCyclic']
-            tempDict = dict()
-            tempDict[k] = v
-            tempL.append(tempDict)
-            ret['FullyCyclic'] = tempL
-        else:
-            tempL = ret['CyclicBUtResolvableGivenInZone']
-            tempDict = dict()
-            tempDict[k] = v
-            tempL.append(tempDict)
-            ret['CyclicBUtResolvableGivenInZone'] = tempL
-
-    return ret
 
 
 def find_cycles(timeout_file=None, output_file=None):
@@ -926,7 +1068,20 @@ def find_cycles(timeout_file=None, output_file=None):
     with open(timeout_file) as f:
         bugged = json.load(f)
 
-    # create Authority objects from timed out zones
+    '''create Authority objects from timed out zones
+    each timed out NS when asked directly the parent, returns the records AND an authority section
+    for example: dig  ns2.yurtlarburada.net. @j.gtld-servers.net.
+
+    ;; AUTHORITY SECTION:
+    yurtlarburada.net.      172800  IN      NS      ns1.yurtlarburada.net.
+    yurtlarburada.net.      172800  IN      NS      ns2.yurtlarburada.net.
+    
+    ;; ADDITIONAL SECTION:
+    ns1.yurtlarburada.net.  172800  IN      A       185.48.182.244
+    ns2.yurtlarburada.net.  172800  IN      A       185.48.182.245
+    
+    this step two create an authority object, which has a zone and NSes that do not resolve or are lame
+    '''
     print("Step 2: create Authority objects")
     timeOutZones = makeAuth(bugged)
 
@@ -942,7 +1097,7 @@ def find_cycles(timeout_file=None, output_file=None):
     # classified=classZones(cyclic)
 
     print("step 7: writing down results")
-    if len(cyclic)>0:
+    if len(cyclic) > 0:
         with open(output_file, 'w') as fp:
             json.dump(cyclic, fp)
     else:

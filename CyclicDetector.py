@@ -327,8 +327,6 @@ async def map_nsset(nsset_file, output_file, limit=None, workers=5):
     with open(output_file, 'w') as fp:
         json.dump(timeOutNSes, fp)
 
-    print("und jetz? ")
-
 
 if __name__ == '__main__':
     # Setup logging if called from command line
