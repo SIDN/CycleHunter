@@ -1,11 +1,9 @@
-import argparse
 import json
 import logging
 import sys
-
+import argparse
 import dns.resolver
 from dns import resolver
-
 from domutils import getparent
 
 
@@ -190,9 +188,7 @@ def getDeps(timeOutWOBailick):
     for zone, localAuth in timeOutWOBailick.items():
         tempDepzone = localAuth.zoneItDepends
         codep[zone] = tempDepzone
-
     return codep
-
 
 def getAAAA(ns):
     localRes = resolver.Resolver()
@@ -909,13 +905,18 @@ def sortDepsNew(timeOutWOBailick):
 
     for zone, dependentZone in zoneAndDeps.items():
 
+
         counter = counter + 1
         print('analyzing ' + zone + " Domain " + str(counter) + " from " + total)
 
         # to be cyclic dependent, all zones here must from tempDepZone must point to zone
         # evaluate every single zone they depend on
 
-        #1st step: get a
+        #a zone may have multiple zones it depend upon
+        # we need to account for ALL of them in here
+
+        evalAllDepZones=[]
+
         for eachDepZone in dependentZone:
             #the dict below will store all zones
             AuthorityDepZones = dict()
@@ -927,28 +928,57 @@ def sortDepsNew(timeOutWOBailick):
             else:
                 AuthorityDepZones = getZoneDependencies(eachDepZone)
 
-
-
             # analyze retuns from the subDepZoneAuthority
             #if is a dict is because it is resolvable at the parent
             # if gets other erros, we count them below
+            hasDiffZone = False
             if isinstance(AuthorityDepZones, dict):
                 localDepZones = set()
                 for depzone, dep_depzone in AuthorityDepZones.items():
                     #fix here duane's comments about glue
+
                     if isinstance(dep_depzone, str) == False:
+                        dep_depzone.calcParentZones()
+                        if depzone not in newAuth:
+                            newAuth[depzone] = dep_depzone
+                        if dep_depzone.extZonesItDepends != None:
+                            if isinstance(dep_depzone.extZonesItDepends, set):
+                                if len(dep_depzone.extZonesItDepends) > 0:
+                                    hasDiffZone = True
+                            else:
+                                print('DEBUG HERE 2')
+
                         if dep_depzone.glueRecords!= None:
                             #has glue at parent
-                            domainsGlueAtParent.append(dep_depzone)
+                            #domainsGlueAtParent.append(dep_depzone.zone)
+                            evalAllDepZones.append('glue:'+ dep_depzone.zone)
                         else:
                             #here is when it can occur for real
                             for singelDep2Zone in dep_depzone.zoneItDepends:
-                                if dep_depzone != '':
-                                    localDepZones.add(singelDep2Zone.lower())
+                                if "rdtype is 6" in singelDep2Zone:
+                                    evalAllDepZones.append('REFUSED:' + eachDepZone)
+
+                                else:
+                                    if dep_depzone != '':
+                                        localDepZones.add(singelDep2Zone.lower())
+                                        evalAllDepZones.append('subzone to be evaluated:' + singelDep2Zone.lower())
 
 
-
-
+            elif AuthorityDepZones == "NXDOMAIN":
+                #clearedForNX.append(zone)
+                evalAllDepZones.append('NSNXDOMAIN:' + eachDepZone)
+            elif AuthorityDepZones == "OK":
+                #clearedZonesForOK.append(zone)
+                evalAllDepZones.append('OK:' + eachDepZone)
+            elif AuthorityDepZones == "BROKEN":
+                #domainsBrokeNS.append(zone)
+                evalAllDepZones.append("BROKEN NS:" + eachDepZone)
+            elif AuthorityDepZones== "SOA PROBLEMS":
+                #domainsSoaProblems.append(zone)
+                evalAllDepZones.append("BROKEN SOA:" + eachDepZone)
+            else:
+                evalAllDepZones.append("REST, check here")
+            '''
             #now, analyze these authority AuthorityDepZones object, and see if has cyclic dependencies
             hasDiffZone = False
             if isinstance(AuthorityDepZones, dict):
@@ -968,86 +998,118 @@ def sortDepsNew(timeOutWOBailick):
                             print('DEBUG HERE 2')
                 # now, process localDepZone
                 # localDepZones it is all zones that the zone in question depends
+            '''
+
+            # now have to eval evalAllDepZones
 
 
-                if len(localDepZones) >= 1:
 
-                    # there are two cateogries of codep: one fullY (1to1, then there's one only localDepzone)
-                    # full DEP
-                    if len(localDepZones) == 1:
+            #so say zone A depends on B, which depends on C an D.
+            # evalAllDepZones has C and D
+            #cyclic dependency is when B points to A
+            # If C and D point somewhere else, it is not cyclic dependency
+            # if ony C points to B, it's partial cyclic dep -- we don't know yet how much amplifcaiton that leads, but I'd guess
+            # it can be as bad if at least one of them is not OK.
 
-                        for k in localDepZones:
+            zonesThatCouldBeCyclic=set()
+            for k in evalAllDepZones:
+                if 'to be evaluated' in k:
+                    zoneC=k.split(":")[1]
+                    zonesThatCouldBeCyclic.add(zoneC)
 
-                            if k.lower() == zone.lower() and hasDiffZone == True:
-                                if timeOutWOBailick[zone].zoneHasAtLeastOneNSinBailiwick == False:
-                                    if zone.lower() not in cyclicDependentZones['fullDep']:
-                                        fullyDepedent = cyclicDependentZones['fullDep']
-                                        fullyDepedent[zone] = eachDepZone
-                                        cyclicDependentZones['fullDep'] = fullyDepedent
-                                else:
-                                    # if a domain has at least one record in bailiwick it can't be fully cyclic dependent
-                                    # because it in theory has a glue
-                                    if zone.lower() not in cyclicDependentZones['fullDepWithInzone']:
-                                        fullDepWithInZoneNS = cyclicDependentZones['fullDepWithInzone']
-                                        fullDepWithInZoneNS[zone] = eachDepZone
-                                        cyclicDependentZones['fullDepWithInzone'] = fullDepWithInZoneNS
+                elif "NSNXDOMAIN" in k:
+                    clearedForNX.append(zone.lower())
 
-                            elif hasDiffZone == False:
-                                # print(zone.lower() + ' is not cyclic dependent')
-                                domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
-                                # hasDiffZone=True
-                            elif hasDiffZone==True:
-                                clearedForLame.append(zone.lower())
+                elif "OK" in k:
+                    clearedZonesForOK.append(zone.lowe())
 
-                            else:
-                                clearedZonesForMultipleZones.append(zone.lower())
-                                print("Debug this stuff")
+                elif "BROKEN" in k:
+                    domainsBrokeNS.append(zone.lower())
 
-                    #if there is more than one zone that this one depends, then it can't be cyclic depedent
-                    #like, one to one.
-                    # but it can be partially dependent
+                elif "SOA" in k:
+                    domainsSoaProblems.append(zone.lower())
 
-                    elif len(localDepZones) > 1:
-
-                        zonesCyclicDep=0
-                        for k in localDepZones:
-
-                            # the error is here: must be not ONLY zone, but ALL
-                            #print("the error is here: must be not ONLY zone, but ALL here")
-                            if k.lower() == zone.lower() and hasDiffZone == True:
-                                # domain is cyclic depednet
-                                zonesCyclicDep=zonesCyclicDep+1
-                                if zone.lower() not in cyclicDependentZones['partialDep']:
-                                    #print("object has no resolvable, damn it ")
-                                    pd = cyclicDependentZones['partialDep']
-                                    pd[zone.lower()] = eachDepZone
-                                    cyclicDependentZones['partialDep'] = pd
-
-
-                            elif hasDiffZone == False:
-                                # print(zone.lower() + ' is not cyclic dependent')
-                                domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
-                                # hasDiffZone=True
-                            else:
-                                # print('waht now')
-                                pass
-                        else:
-                            clearedZonesForMultipleZones.append(zone.lower())
-                    else:
-                        #print('zone has been eval already')
-                        pass
+                elif "REFUSED" in k:
+                    clearedForLame.append(zone.lower())
                 else:
-                    # print("zone has no issues i guess ")
-                    clearedZonesForOK.append(zone.lower())
+                    domainsSoaProblems.append(zone.lower())
 
-            elif AuthorityDepZones == "NXDOMAIN":
-                clearedForNX.append(zone)
-            elif AuthorityDepZones == "OK":
-                clearedZonesForOK.append(zone)
-            elif AuthorityDepZones == "BROKEN":
-                domainsBrokeNS.append(zone)
-            elif AuthorityDepZones== "SOA PROBLEMS":
-                domainsSoaProblems.append(zone)
+            if len(zonesThatCouldBeCyclic)==1:
+
+                for zoneC in zonesThatCouldBeCyclic:
+                        if zoneC.lower() == zone.lower() and hasDiffZone == True:
+                            if timeOutWOBailick[zone].zoneHasAtLeastOneNSinBailiwick == False:
+                                if zone.lower() not in cyclicDependentZones['fullDep']:
+                                    fullyDepedent = cyclicDependentZones['fullDep']
+                                    fullyDepedent[zone] = eachDepZone
+                                    cyclicDependentZones['fullDep'] = fullyDepedent
+
+
+                            else:
+                                # if a domain has at least one record in bailiwick it can't be fully cyclic dependent
+                                # because it in theory has a glue
+                                if zone.lower() not in cyclicDependentZones['fullDepWithInzone']:
+                                    fullDepWithInZoneNS = cyclicDependentZones['fullDepWithInzone']
+                                    fullDepWithInZoneNS[zone] = eachDepZone
+                                    cyclicDependentZones['fullDepWithInzone'] = fullDepWithInZoneNS
+
+                        elif hasDiffZone == False:
+                            # print(zone.lower() + ' is not cyclic dependent')
+                            domainsThatFailedBUtNotCyclicDependency.append(zone.lower())
+                            # hasDiffZone=True
+                        elif hasDiffZone == True:
+                            clearedForLame.append(zone.lower())
+
+
+            elif len(zonesThatCouldBeCyclic)> 1:
+
+                zonesCyclicDep = []
+                for zoneC in zonesThatCouldBeCyclic:
+
+                    # the error is here: must be not ONLY zone, but ALL
+                    # print("the error is here: must be not ONLY zone, but ALL here")
+
+                    if zoneC.lower() == zone.lower() and hasDiffZone == True:
+                            zonesCyclicDep.append(k)
+                #only if all zones point back to A
+
+                if len(zonesCyclicDep)== len(zonesThatCouldBeCyclic):
+                    if zone.lower() not in cyclicDependentZones['fullDep']:
+                        fullyDepedent = cyclicDependentZones['fullDep']
+                        #maybe there are more than one
+                        if zone not in fullyDepedent:
+                            fullyDepedent[zone] = eachDepZone
+                        else:
+                            fullyDepedent[zone] =  fullyDepedent[zone] +":" + eachDepZone
+                        cyclicDependentZones['fullDep'] = fullyDepedent
+
+                elif  len(zonesCyclicDep) < len(zonesThatCouldBeCyclic) and len(zonesCyclicDep)>0:
+                    if zone.lower() not in cyclicDependentZones['partialDep']:
+                        # print("object has no resolvable, damn it ")
+                        pd = cyclicDependentZones['partialDep']
+                        if zone.lower() not in pd:
+                            pd[zone.lower()] = eachDepZone
+                        else:
+                            pd[zone.lower()] =  pd[zone.lower()] + ":" +eachDepZone
+                        cyclicDependentZones['partialDep'] = pd
+
+
+
+    '''
+        #TODO HERE:  fix these stats here
+        debug=dict()
+        debug['ZonesWtihOKNS']=list(set(clearedZonesForOK))
+        debug['NS NXDOMAIN']=list(set(clearedForNX))
+        debug['lame delegations'] = list(set(clearedForLame))
+        debug['clearedZonesForMultipleZones'] = list(set())
+        debug['multipleExtZones']= list(set(clearedZonesForMultipleZones))
+        debug['OtherFailures'] = list(set(domainsThatFailedBUtNotCyclicDependency))
+        debug['hasGlueAtParents'] = list(set(domainsGlueAtParent))
+        debug['brokenSOA'] = list(set(domainsSoaProblems))
+    
+        with open('debug.json', 'w') as aus2:
+            json.dump(debug,aus2)
+        aus2.close()
 
 
     print("stats from the timeout domains evaluation:\n")
@@ -1059,7 +1121,7 @@ def sortDepsNew(timeOutWOBailick):
     print("Cleared for having glue at parents: " + str(len(domainsGlueAtParent)))
     print("Cleared for having SOA problems: " + str(len(domainsSoaProblems)))
     print("Total cyclic dependent zones:" + str(len(cyclicDependentZones['fullDep'])))
-
+    '''
     return cyclicDependentZones
 
 
