@@ -286,7 +286,7 @@ async def probeNSes(setOfNSes, workers=5):
     sem = asyncio.Semaphore(value=workers)
 
     aws = [probe_ns_limited_concurrency(nsname, sem) for nsname in setOfNSes]
-    for coro in tqdm.asyncio.tqdm.as_completed(aws):
+    for coro in tqdm.tqdm(asyncio.as_completed(aws),disable=None,total=len(aws)):
         nsname, res = await coro
         results[nsname] = res
 
