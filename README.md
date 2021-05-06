@@ -10,6 +10,12 @@
 ## Important: 
 
 * Clean your resolver's cache _before_ running CycleHunter 
+* Requires **Python3.7 minimum* 
+
+ **Required packages for Debian/Ubuntu**
+`apt install python3-tqdm python3-multiprocess python3-dnspython`
+`pip install async_lru`
+
 ### To run it:
 
 To analyze a full zone, you can use `CycleHunter.py` as below
@@ -51,7 +57,7 @@ Where
 
 5. Determine how many zones are affected by cyclic dependency
 
-    * `python zoneMacher.py $ouput4 $zoneFile $TLD $output5`
+    * `python zoneMatcher.py $ouput4 $zoneFile $TLD $output5`
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
@@ -76,9 +82,3 @@ e.g.
 
 docker run -it -v $(pwd):/data --rm sidn/cyclehunter pypy3 findCyclicDep.py /data/$output2 /data/$output3
 
-```
-### Requires Python3.7 minimum 
-
-### Required packages for Debian/Ubuntu
-`apt install python3-tqdm python3-multiprocess python3-dnspython`
-`pip install async_lru`
