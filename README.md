@@ -10,7 +10,7 @@
 ## Important: 
 
 * Clean your resolver's cache _before_ running CycleHunter 
-* Requires **Python3.7 minimum* 
+* Requires **Python3.7 minimum**
 
  **Required packages for Debian/Ubuntu**
 `apt install python3-tqdm python3-multiprocess python3-dnspython`
