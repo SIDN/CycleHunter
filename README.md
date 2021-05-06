@@ -58,7 +58,7 @@ Where
 
 5. Determine how many zones are affected by cyclic dependency
 
-    * `python zoneMatcher.py $ouput4 $zoneFile $TLD $output5`
+    * `python zoneMatcher.py $output4 $zoneFile $TLD $output5`
     * **Alternative version for com** : `zoneMatcher-com.py`
 
 `output5` has all domains affected by cyclic dependency
