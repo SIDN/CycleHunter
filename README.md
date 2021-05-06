@@ -13,6 +13,7 @@
 * Requires **Python3.7 minimum**
 
  **Required packages for Debian/Ubuntu**
+ 
 `apt install python3-tqdm python3-multiprocess python3-dnspython`
 `pip install async_lru`
 
