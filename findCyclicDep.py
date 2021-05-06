@@ -1021,7 +1021,7 @@ def sortDepsNew(timeOutWOBailick):
                     clearedForNX.append(zone.lower())
 
                 elif "OK" in k:
-                    clearedZonesForOK.append(zone.lowe())
+                    clearedZonesForOK.append(zone.lower())
 
                 elif "BROKEN" in k:
                     domainsBrokeNS.append(zone.lower())
