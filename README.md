@@ -13,9 +13,10 @@
 * Requires **Python3.7 minimum**
 
  **Required packages for Debian/Ubuntu**
- 
-`apt install python3-tqdm python3-multiprocess python3-dnspython`
-`pip install async_lru`
+  * `CycleHunter` users newer versions of packages than the ones shipped with Debian
+  * Please remove the packages below and install them again with `pip`
+      * `python3-tqdm python3-multiprocess python3-dnspython`
+  * Also, install : *`pip install async_lru`
 
 ### To run it:
 
