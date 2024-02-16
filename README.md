@@ -4,7 +4,7 @@
 * It takes as input DNS zone files
 * First developed by [@gmmoura](https://github.com/gmmoura) and [@seb-at-nzrs](https://github.com//seb-at-nzrs), from [SIDN Labs](https://sidnlabs.nl) and [InternetNZ](http://internetnz.nz/).
 * _Significantly_ improved by all contributors
-* We've publicly disclose the [tsuNAME](https://tsuname.io) vulnerability on 2021-05-06. Check our [technical report ](https://tsuname.io/tech_report.pdf) for more detials on `CycleHunter`
+* We've publicly disclose the [tsuNAME](https://tsuname.sidnlabs.nl) vulnerability on 2021-05-06. Check our [technical report ](https://tsuname.sidnlabs.nl/tech_report.pdf) for more detials on `CycleHunter`
 
 
 ## Important: 
